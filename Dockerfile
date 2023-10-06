@@ -1,3 +1,4 @@
+FROM ubuntu:20.04
 FROM mongo:3
 FROM golang:latest
 
@@ -22,13 +23,21 @@ COPY . .
 RUN go mod download
 RUN go install
 
-RUN apt-get update && \
-    apt-get install -y gnupg && \
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+RUN wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb
 
-RUN echo "deb http://repo.mongodb.org/apt/debian stretch/mongodb-org/3.6 main" | tee /etc/apt/sources.list.d/mongodb-org-3.6.list && \
-    apt-get update && \
+RUN dpkg -i libssl1.1_1.1.1f-1ubuntu2_amd64.deb
+
+RUN apt-get update && \
+    apt-get install -y gnupg wget && \
+    wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+
+# Add the MongoDB repository for Ubuntu 20.04
+RUN echo "deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+
+# Install MongoDB
+RUN apt-get update && \
     apt-get install -y mongodb-org
+
 
 RUN mkdir -p /data/db
 
@@ -39,11 +48,14 @@ RUN go build -o main
 
 EXPOSE 6000
 
-CMD mongosh --fork --logpath /var/log/mongodb.log && \
-    mongo --host localhost --eval "db = db.getSiblingDB('ecal'); db.createCollection('movies'); db.movies.insertMany([]);" && \
-    mongo --host localhost --eval "db = db.getSiblingDB('ecal'); db.createCollection('comments'); db.comments.insertMany([]);" && \
-    mongoimport --host localhost --db reach-engine --collection movies --type json --file /movies.json --jsonArray && \
-    mongoimport --host localhost --db reach-engine --collection comments --type json --file /comments.json --jsonArray && \
+#CMD ["mongod"]
+
+CMD mongod --fork --logpath /var/log/mongodb.log && \
+    mongosh "use ecal;" && \
+    mongosh "db.createCollection('movies'); db.movies.insertMany([]);" && \
+    mongosh " db.createCollection('comments'); db.comments.insertMany([]);" && \
+    mongoimport --host localhost --db ecal --collection movies --file movies.json --type json && \
+    mongoimport --host localhost --db ecal --collection comments --file comments.json --type json && \
     ./main
 
 #CMD ["./main"]
