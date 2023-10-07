@@ -2,15 +2,15 @@ package main
 
 import (
 	"context"
+	"ecal-mongo/api/comments"
+	"ecal-mongo/api/movies"
 	"ecal-mongo/configs"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
-	"time"
 )
 
 func main() {
@@ -31,10 +31,14 @@ func main() {
 	})
 
 	router.GET("/movies", func(c *gin.Context) {
-		movieCollection, err := GetCollection(db, "movies")
+		movieCollection, err := movies.GetMovies(db)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
+
 		c.Header("Content-Type", "application/json")
 
 		c.JSON(200, gin.H{
@@ -42,10 +46,31 @@ func main() {
 		})
 	})
 
-	router.GET("/comments", func(c *gin.Context) {
-		commentCollection, err := GetCollection(db, "comments")
+	router.GET("/movies/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		c.Header("Content-Type", "application/json")
+
+		result, err := movies.GetMovie(db, id)
 		if err != nil {
-			log.Fatal(err)
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"data": result,
+		})
+	})
+
+	router.GET("/comments", func(c *gin.Context) {
+		commentCollection, err := comments.GetComments(db)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
 
 		c.Header("Content-Type", "application/json")
@@ -55,20 +80,81 @@ func main() {
 		})
 	})
 
+	router.GET("/comments/:id", func(c *gin.Context) {
+		id := c.Param("id")
+
+		c.Header("Content-Type", "application/json")
+
+		result, err := comments.GetComment(db, id)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"data": result,
+		})
+	})
+
 	router.POST("/comments", func(c *gin.Context) {
-		id := c.Query("id")
+		id := c.Query("movieId")
 		name := c.Query("name")
 		email := c.Query("email")
 		comment := c.Query("comment")
 
-		CreateComment(db, id, name, email, comment)
-		//if err != nil {
-		//	log.Fatal(err)
-		//}
-		//
-		//c.JSON(200, gin.H{
-		//	"data": createComment,
-		//})
+		c.Header("Content-Type", "application/json")
+
+		err := comments.CreateComment(db, id, name, email, comment)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"data": "Comment created successfully",
+		})
+	})
+
+	router.PATCH("/comments", func(c *gin.Context) {
+		id := c.Query("id")
+		comment := c.Query("comment")
+
+		c.Header("Content-Type", "application/json")
+
+		err := comments.UpdateComment(db, id, comment)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"data": "Comment updated successfully",
+		})
+
+	})
+
+	router.DELETE("/comments", func(c *gin.Context) {
+		id := c.Query("id")
+
+		c.Header("Content-Type", "application/json")
+
+		err := comments.DeleteComment(db, id)
+		if err != nil {
+			c.JSON(400, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		c.JSON(200, gin.H{
+			"data": "Comment deleted successfully",
+		})
 	})
 
 	router.Run("localhost:6000")
@@ -95,7 +181,7 @@ func GetCollection(client *mongo.Client, collectionName string) ([]bson.M, error
 
 	getCollection, err := db.Collection(collectionName).Find(context.Background(), filter)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	defer getCollection.Close(context.Background())
@@ -116,57 +202,4 @@ func GetCollection(client *mongo.Client, collectionName string) ([]bson.M, error
 	}
 
 	return results, nil
-}
-
-type Comment struct {
-	ID      primitive.ObjectID `bson:"_id,omitempty"`
-	Name    string             `bson:"name"`
-	Email   string             `bson:"email"`
-	MovieID primitive.ObjectID `bson:"movie_id"`
-	Text    string             `bson:"text"`
-	Date    time.Time          `bson:"date"`
-}
-
-func CreateComment(client *mongo.Client, movieID string, name string, email string, comment string) {
-	fmt.Println(movieID, name, email, comment)
-
-	db := client.Database("ecal")
-
-	objMovie, err := primitive.ObjectIDFromHex(movieID)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(bson.M{"_id": objMovie})
-	checkMovieID := db.Collection("movies").FindOne(context.Background(), bson.M{"_id": objMovie})
-	if checkMovieID.Err() == nil {
-		fmt.Println("Movie ID exists: true")
-	} else if checkMovieID.Err() == mongo.ErrNoDocuments {
-		fmt.Println("Movie ID exists: false")
-	} else {
-		fmt.Println("Error checking Movie ID:", checkMovieID.Err())
-	}
-
-	doc := Comment{
-		Name:    name,
-		Email:   email,
-		MovieID: objMovie,
-		Text:    comment,
-		Date:    time.Now(),
-	}
-
-	insertComment, err := db.Collection("comments").InsertOne(context.Background(), doc)
-	if err != nil {
-		fmt.Println("Error inserting document:", err)
-	}
-	//return name, nil
-	fmt.Println("Inserted doc", insertComment)
-}
-
-func UpdateComment(commentID string, movieID string) {
-
-}
-
-func DeleteComment(commentID string, movieID string) {
-
 }
