@@ -23,7 +23,7 @@ func main() {
 	routes.SetupMovieRoutes(db, router)
 	routes.SetupCommentRoutes(db, router)
 
-	err := router.Run(":6000")
+	err := router.Run(":8080")
 	if err != nil {
 		return
 	}
