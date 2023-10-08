@@ -1,4 +1,4 @@
-package movies
+package models
 
 import (
 	"context"
@@ -55,17 +55,28 @@ type Viewer struct {
 	Meter      int     `json:"meter" bson:"meter"`
 }
 
+var (
+	ErrMovieNotFound = errors.New("comment not found")
+)
+
+//var movieCollection = db.Database("ecal").Collection("movies")
+
 func GetMovies(client *mongo.Client) ([]bson.M, error) {
 	db := client.Database("ecal")
-	coll := db.Collection("movies")
+	movieCollection := db.Collection("movies")
 	filter := bson.M{}
 
-	getMovies, err := coll.Find(context.Background(), filter)
+	getMovies, err := movieCollection.Find(context.Background(), filter)
 	if err != nil {
 		return nil, err
 	}
 
-	defer getMovies.Close(context.Background())
+	defer func(getMovies *mongo.Cursor, ctx context.Context) {
+		err := getMovies.Close(ctx)
+		if err != nil {
+
+		}
+	}(getMovies, context.Background())
 
 	var results []bson.M
 
@@ -87,7 +98,7 @@ func GetMovies(client *mongo.Client) ([]bson.M, error) {
 
 func GetMovie(client *mongo.Client, movieID string) (Movie, error) {
 	db := client.Database("ecal")
-	coll := db.Collection("movies")
+	movieCollection := db.Collection("movies")
 
 	if movieID == "" {
 		return Movie{}, errors.New("id cannot be empty")
@@ -99,10 +110,10 @@ func GetMovie(client *mongo.Client, movieID string) (Movie, error) {
 	}
 
 	var movie Movie
-	checkMovieID := coll.FindOne(context.Background(), bson.M{"_id": objMovie})
+	checkMovieID := movieCollection.FindOne(context.Background(), bson.M{"_id": objMovie})
 	if checkMovieID.Err() != nil {
-		if checkMovieID.Err() == mongo.ErrNoDocuments {
-			return Movie{}, errors.New("movie not found")
+		if errors.Is(checkMovieID.Err(), mongo.ErrNoDocuments) {
+			return Movie{}, ErrMovieNotFound
 		}
 		return Movie{}, err
 	}

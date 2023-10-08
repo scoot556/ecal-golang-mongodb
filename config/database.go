@@ -1,4 +1,4 @@
-package configs
+package config
 
 import (
 	"context"
@@ -28,10 +28,3 @@ func ConnectDB() *mongo.Client {
 	fmt.Println("Connected to MongoDB")
 	return client
 }
-
-var DB *mongo.Client = ConnectDB()
-
-//func GetCollection(client *mongo.Client, collectionName string) *mongo.Collection {
-//	collection := client.Datatbase("ecal").Collection(collectionName)
-//	return collection
-//}
