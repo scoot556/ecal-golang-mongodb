@@ -3,7 +3,6 @@ package models
 import (
 	"context"
 	"errors"
-	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -25,7 +24,21 @@ var (
 	ErrEmptyField      = errors.New("field cannot be empty")
 )
 
-//var commentCollection = db.Database("ecal").Collection("comments")
+type CreateCommentRequest struct {
+	MovieID string `json:"movieId"`
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Comment string `json:"comment"`
+}
+
+type UpdateCommentRequest struct {
+	CommentID string `json:"id"`
+	Comment   string `json:"comment"`
+}
+
+type DeleteCommentRequest struct {
+	CommentID string `json:"id"`
+}
 
 func GetComments(client *mongo.Client) ([]bson.M, error) {
 	db := client.Database("ecal")
@@ -91,59 +104,99 @@ func GetComment(client *mongo.Client, commentID string) (Comment, error) {
 	return comment, nil
 }
 
-func CreateComment(client *mongo.Client, movieID string, name string, email string, comment string) error {
+//func CreateComment(client *mongo.Client, request CreateCommentRequest) error {
+//	db := client.Database("ecal")
+//	commentCollection := db.Collection("comments")
+//	movieCollection := db.Collection("movies")
+//
+//	objMovie, err := primitive.ObjectIDFromHex(request.MovieID)
+//	if err != nil {
+//		return err
+//	}
+//
+//	if request.Name == "" || request.Email == "" || request.Comment == "" {
+//		return ErrEmptyField
+//	}
+//
+//	movieFilter := bson.M{"_id": objMovie}
+//	checkMovieID := movieCollection.FindOne(context.Background(), movieFilter)
+//	if checkMovieID.Err() != nil {
+//		if errors.Is(checkMovieID.Err(), mongo.ErrNoDocuments) {
+//			return errors.New("movie not found")
+//		}
+//		return checkMovieID.Err()
+//	}
+//
+//	doc := Comment{
+//		Name:    request.Name,
+//		Email:   request.Email,
+//		MovieID: objMovie,
+//		Text:    request.Comment,
+//		Date:    time.Now(),
+//	}
+//
+//	_, err = commentCollection.InsertOne(context.Background(), doc)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
+
+func CreateComment(client *mongo.Client, request CreateCommentRequest) (primitive.ObjectID, error) {
 	db := client.Database("ecal")
 	commentCollection := db.Collection("comments")
 	movieCollection := db.Collection("movies")
 
-	objMovie, err := primitive.ObjectIDFromHex(movieID)
+	objMovie, err := primitive.ObjectIDFromHex(request.MovieID)
 	if err != nil {
-		return err
+		return primitive.NilObjectID, err
 	}
 
-	if name == "" || email == "" || comment == "" {
-		return ErrEmptyField
+	if request.Name == "" || request.Email == "" || request.Comment == "" {
+		return primitive.NilObjectID, ErrEmptyField
 	}
 
-	fmt.Println(bson.M{"_id": objMovie})
-	checkMovieID := movieCollection.FindOne(context.Background(), bson.M{"_id": objMovie})
+	movieFilter := bson.M{"_id": objMovie}
+	checkMovieID := movieCollection.FindOne(context.Background(), movieFilter)
 	if checkMovieID.Err() != nil {
 		if errors.Is(checkMovieID.Err(), mongo.ErrNoDocuments) {
-			return errors.New("movie not found")
+			return primitive.NilObjectID, errors.New("movie not found")
 		}
-		return checkMovieID.Err()
+		return primitive.NilObjectID, checkMovieID.Err()
 	}
 
 	doc := Comment{
-		Name:    name,
-		Email:   email,
+		Name:    request.Name,
+		Email:   request.Email,
 		MovieID: objMovie,
-		Text:    comment,
+		Text:    request.Comment,
 		Date:    time.Now(),
 	}
 
-	_, err = commentCollection.InsertOne(context.Background(), doc)
+	result, err := commentCollection.InsertOne(context.Background(), doc)
 	if err != nil {
-		return err
+		return primitive.NilObjectID, err
 	}
 
-	return nil
+	return result.InsertedID.(primitive.ObjectID), nil
 }
 
-func UpdateComment(client *mongo.Client, commentID string, comment string) error {
+func UpdateComment(client *mongo.Client, request UpdateCommentRequest) error {
 	db := client.Database("ecal")
 	commentCollection := db.Collection("comments")
 
-	objComment, err := primitive.ObjectIDFromHex(commentID)
+	objComment, err := primitive.ObjectIDFromHex(request.CommentID)
 	if err != nil {
 		return err
 	}
 
-	if comment == "" {
+	if request.Comment == "" {
 		return ErrEmptyField
 	}
 
-	checkCommentID := commentCollection.FindOne(context.Background(), bson.M{"_id": objComment})
+	commentFilter := bson.M{"_id": objComment}
+	checkCommentID := commentCollection.FindOne(context.Background(), commentFilter)
 	if checkCommentID.Err() != nil {
 		if errors.Is(checkCommentID.Err(), mongo.ErrNoDocuments) {
 			return ErrCommentNotFound
@@ -151,7 +204,7 @@ func UpdateComment(client *mongo.Client, commentID string, comment string) error
 		return checkCommentID.Err()
 	} else {
 		filter := bson.D{{"_id", objComment}}
-		update := bson.D{{"$set", bson.D{{"text", comment}}}}
+		update := bson.D{{"$set", bson.D{{"text", request.Comment}}}}
 
 		_, err = commentCollection.UpdateOne(context.Background(), filter, update)
 		if err != nil {
@@ -162,16 +215,17 @@ func UpdateComment(client *mongo.Client, commentID string, comment string) error
 	}
 }
 
-func DeleteComment(client *mongo.Client, commentID string) error {
+func DeleteComment(client *mongo.Client, request DeleteCommentRequest) error {
 	db := client.Database("ecal")
 	commentCollection := db.Collection("comments")
 
-	objComment, err := primitive.ObjectIDFromHex(commentID)
+	objComment, err := primitive.ObjectIDFromHex(request.CommentID)
 	if err != nil {
 		return err
 	}
 
-	checkCommentID := commentCollection.FindOne(context.Background(), bson.M{"_id": objComment})
+	commentDeleteFilter := bson.M{"_id": objComment}
+	checkCommentID := commentCollection.FindOne(context.Background(), commentDeleteFilter)
 	if checkCommentID.Err() != nil {
 		if errors.Is(checkCommentID.Err(), mongo.ErrNoDocuments) {
 			return ErrCommentNotFound

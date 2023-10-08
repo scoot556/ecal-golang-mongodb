@@ -14,12 +14,6 @@ func main() {
 
 	models.SetDatabase(db)
 
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"data": "Hello from Gin-gonic & mongoDB",
-		})
-	})
-
 	routes.SetupMovieRoutes(db, router)
 	routes.SetupCommentRoutes(db, router)
 

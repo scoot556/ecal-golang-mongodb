@@ -4,6 +4,7 @@ import (
 	"ecal-mongo/models"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/mongo"
+	"net/http"
 )
 
 func GetCommentsHandler(db *mongo.Client, c *gin.Context) {
@@ -41,14 +42,16 @@ func GetCommentHandler(db *mongo.Client, c *gin.Context) {
 }
 
 func PostCommentHandler(db *mongo.Client, c *gin.Context) {
-	id := c.Query("movieId")
-	name := c.Query("name")
-	email := c.Query("email")
-	comment := c.Query("comment")
+	var request models.CreateCommentRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.Header("Content-Type", "application/json")
 
-	err := models.CreateComment(db, id, name, email, comment)
+	commentID, err := models.CreateComment(db, request)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"error": err.Error(),
@@ -57,17 +60,22 @@ func PostCommentHandler(db *mongo.Client, c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"data": "Comment created successfully",
+		"data":      "Comment created successfully",
+		"commentID": commentID.Hex(),
 	})
 }
 
 func UpdateCommentHandler(db *mongo.Client, c *gin.Context) {
-	id := c.Query("id")
-	comment := c.Query("comment")
+	var request models.UpdateCommentRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.Header("Content-Type", "application/json")
 
-	err := models.UpdateComment(db, id, comment)
+	err := models.UpdateComment(db, request)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"error": err.Error(),
@@ -82,11 +90,16 @@ func UpdateCommentHandler(db *mongo.Client, c *gin.Context) {
 }
 
 func DeleteCommentHandler(db *mongo.Client, c *gin.Context) {
-	id := c.Query("id")
+	var request models.DeleteCommentRequest
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.Header("Content-Type", "application/json")
 
-	err := models.DeleteComment(db, id)
+	err := models.DeleteComment(db, request)
 	if err != nil {
 		c.JSON(400, gin.H{
 			"error": err.Error(),
