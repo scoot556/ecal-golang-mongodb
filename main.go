@@ -14,8 +14,17 @@ func main() {
 
 	models.SetDatabase(db)
 
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"data": "Hello from Gin",
+		})
+	})
+
 	routes.SetupMovieRoutes(db, router)
 	routes.SetupCommentRoutes(db, router)
 
-	router.Run("localhost:6000")
+	err := router.Run(":6000")
+	if err != nil {
+		return
+	}
 }

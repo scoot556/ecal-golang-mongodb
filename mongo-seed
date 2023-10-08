@@ -1,5 +1,0 @@
-FROM mongo
-
-COPY movies.json /movies.json
-CMD
-CMD mongoimport --host mongodb --db reach-engine --collection movies --type json --file /init.json --jsonArray
