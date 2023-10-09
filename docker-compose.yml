@@ -1,24 +1,67 @@
-version: '3'
+#version: '3'
+#services:
+#  app:
+#    build:
+#      context: .
+#    ports:
+#      - "8080:8080"
+#    volumes:
+#      - ./data:/data
+#    networks:
+#      - mynetwork
+#
+#  mongodb:
+#    image: mongo:3
+#    volumes:
+#      - ./data/db:/data/db
+#    networks:
+#      - mynetwork
+#    depends_on:
+#      - app
+#
+#networks:
+#  mynetwork:
+#    driver: bridge
+
+version: "3"
 services:
-  app:
-    build:
-      context: .
+  mongo:
+    image: mongo:3
+    hostname: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: ecal
+    volumes:
+      - ./data:/docker-entrypoint-initdb.d
     ports:
-      - "8080:8080"
+      - "27017:27017"
+    networks:
+      - ecal_network
+
+  mongo-seed:
+    image: mongo:3
+    links:
+      - mongo
     volumes:
       - ./data:/data
+      - ./movies.json:/movies.json
+      - ./comments.json:/comments.json
+      - ./seed.sh:/seed.sh
+    command: ["bash", "/seed.sh"]
     networks:
-      - mynetwork
+      - ecal_network
 
-  mongodb:
-    image: mongo:3
-    volumes:
-      - ./data/db:/data/db
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    links:
+      - mongo
     networks:
-      - mynetwork
-    depends_on:
-      - app
+      - ecal_network
 
 networks:
-  mynetwork:
-    driver: bridge
+  ecal_network:
+    external: true
+    name: ecal_network
