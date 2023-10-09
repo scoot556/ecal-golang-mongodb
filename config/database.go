@@ -16,27 +16,8 @@ var mongoInitOnce sync.Once
 var mongoInitErr error
 
 func initialiseMongoDB() {
-	//clientOptions := options.Client().ApplyURI(EnvMongoURI())
-	//
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	//defer cancel()
-	//
-	//mongoClient, mongoInitErr = mongo.Connect(ctx, clientOptions)
-	//if mongoInitErr != nil {
-	//	log.Fatal(mongoInitErr)
-	//	return
-	//}
-	//
-	//mongoInitErr = mongoClient.Ping(ctx, nil)
-	//if mongoInitErr != nil {
-	//	log.Fatal(mongoInitErr)
-	//	return
-	//}
-	//
-	//fmt.Println("Connected to MongoDB")
 	clientOptions := options.Client().ApplyURI(EnvMongoURI())
 
-	// Set a maximum number of retry attempts
 	maxRetries := 5
 	retryInterval := 10 * time.Second
 
@@ -77,22 +58,4 @@ func ConnectDB() *mongo.Client {
 	}
 
 	return mongoClient
-
-	//client, err := mongo.NewClient(options.Client().ApplyURI(EnvMongoURI()))
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	//err = client.Connect(ctx)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//err = client.Ping(ctx, nil)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//fmt.Println("Connected to MongoDB")
-	//return client
 }
