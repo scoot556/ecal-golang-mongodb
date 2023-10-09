@@ -10,6 +10,11 @@ MONGO_ADMIN_PASSWORD="example"
 
 COLLECTIONS=("comments" "movies")
 
+until mongo -u "$MONGO_USER" -p "$MONGO_PASSWORD" --host "$MONGO_HOST" --authenticationDatabase "$MONGO_AUTH_DB" --eval "quit(db.runCommand({ ping: 1 }).ok ? 0 : 1)"; do
+  echo "Waiting for MongoDB to start..."
+  sleep 1
+done
+
 mongo -u "$MONGO_USER" -p "$MONGO_PASSWORD" --host "$MONGO_HOST" --authenticationDatabase "$MONGO_AUTH_DB" --eval "use $DATABASE_NAME; db.createCollection('comments'); db.createCollection('movies');"
 
 mongo -u "$MONGO_USER" -p "$MONGO_PASSWORD" --host "$MONGO_HOST" --authenticationDatabase "$MONGO_AUTH_DB" --eval "db.getSiblingDB('$DATABASE_NAME').createUser({user: '$MONGO_ADMIN_USER', pwd: '$MONGO_ADMIN_PASSWORD', roles: ['readWrite']});"
